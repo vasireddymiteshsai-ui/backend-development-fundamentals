@@ -4,7 +4,7 @@
 
 - **Name:** Vasireddy Mitesh Sai
 - **Registration Number:** 252U1R1250
-- **Section:** [Insert your section]
+- **Section:** CSE-2E-211
 
 ## Live deployment
 
