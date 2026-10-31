@@ -20,6 +20,8 @@ The local server listens on port `3000` by default. Use `npm run dev` while edit
 
 Vercel's serverless functions cannot keep a local SQLite database file between requests. The app uses a hosted Neon Postgres database when `DATABASE_URL` is set and automatically creates the `book` table and ten sample rows the first time it connects.
 
+**Live API:** [https://lab-02-eight.vercel.app/](https://lab-02-eight.vercel.app/)
+
 1. Create a Neon Postgres database from the Vercel Marketplace, or create one at [Neon](https://neon.tech/).
 2. Copy its connection string. Keep it private.
 3. In Vercel, add the connection string as an environment variable named `DATABASE_URL` for Production (and Preview if needed).
