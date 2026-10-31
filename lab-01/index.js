@@ -11,7 +11,7 @@ app.get("/about", (req, res) => {
   res.json({
     name: "Vasireddy Mitesh Sai",
     registrationNumber: "252U1R1250",
-    section: "[Insert your section]",
+    section: "CSE-2E-211",
   });
 });
 

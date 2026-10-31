@@ -8,7 +8,7 @@
 
 ## Live deployment
 
-[Add the live deployment URL here]
+[https://backend-development-fundamentals-chi.vercel.app/](https://backend-development-fundamentals-chi.vercel.app/)
 
 ## Endpoints
 
