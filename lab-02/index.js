@@ -1,7 +1,5 @@
 const express = require("express");
 const path = require("path");
-const sqlite3 = require("sqlite3");
-const { open } = require("sqlite");
 const sampleBooks = require("./sample-books.json");
 
 const app = express();
@@ -93,6 +91,9 @@ const connectToNeon = async () => {
 };
 
 const connectToLocalSQLite = async () => {
+  const sqlite3 = require("sqlite3");
+  const { open } = require("sqlite");
+
   database = await open({
     filename: databasePath,
     driver: sqlite3.Database,
