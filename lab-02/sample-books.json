@@ -1,0 +1,62 @@
+[
+  {
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "price": 10,
+    "pages": 180
+  },
+  {
+    "title": "To Kill a Mockingbird",
+    "author": "Harper Lee",
+    "price": 12,
+    "pages": 281
+  },
+  {
+    "title": "1984",
+    "author": "George Orwell",
+    "price": 9,
+    "pages": 328
+  },
+  {
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "price": 8,
+    "pages": 432
+  },
+  {
+    "title": "The Hobbit",
+    "author": "J. R. R. Tolkien",
+    "price": 15,
+    "pages": 310
+  },
+  {
+    "title": "The Catcher in the Rye",
+    "author": "J. D. Salinger",
+    "price": 11,
+    "pages": 277
+  },
+  {
+    "title": "Animal Farm",
+    "author": "George Orwell",
+    "price": 7,
+    "pages": 112
+  },
+  {
+    "title": "The Alchemist",
+    "author": "Paulo Coelho",
+    "price": 13,
+    "pages": 208
+  },
+  {
+    "title": "Little Women",
+    "author": "Louisa May Alcott",
+    "price": 14,
+    "pages": 449
+  },
+  {
+    "title": "Moby-Dick",
+    "author": "Herman Melville",
+    "price": 16,
+    "pages": 585
+  }
+]

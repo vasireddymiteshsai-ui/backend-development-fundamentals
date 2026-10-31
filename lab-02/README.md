@@ -1,4 +1,4 @@
-# Lab 2: SQLite Database and CRUD Routes
+# Lab 2: SQLite CRUD API
 
 ## Student details
 
@@ -6,7 +6,7 @@
 - **Registration Number:** 252U1R1250
 - **Section:** CSE-2E-211
 
-## Setup and run
+## Run locally with SQLite
 
 ```bash
 npm install
@@ -14,7 +14,18 @@ npm run seed
 npm start
 ```
 
-For development with automatic restarts, run `npm run dev`. The server uses port `3000` by default, or the port specified by the `PORT` environment variable.
+The local server listens on port `3000` by default. Use `npm run dev` while editing to restart the server automatically. The local SQLite file is `books.db`.
+
+## Deploy to Vercel with a hosted database
+
+Vercel's serverless functions cannot keep a local SQLite database file between requests. The app uses a hosted Neon Postgres database when `DATABASE_URL` is set and automatically creates the `book` table and ten sample rows the first time it connects.
+
+1. Create a Neon Postgres database from the Vercel Marketplace, or create one at [Neon](https://neon.tech/).
+2. Copy its connection string. Keep it private.
+3. In Vercel, add the connection string as an environment variable named `DATABASE_URL` for Production (and Preview if needed).
+4. Import this repository and set its **Root Directory** to `lab-02`. Use the default Node.js/Express settings and deploy.
+
+The local SQLite database is used when `DATABASE_URL` is not set outside Vercel. On Vercel, the app requires `DATABASE_URL` so it does not accidentally use temporary local storage.
 
 ## API endpoints
 
@@ -26,7 +37,7 @@ For development with automatic restarts, run `npm run dev`. The server uses port
 | PUT | `/books/:bookId/` | Update a book |
 | DELETE | `/books/:bookId/` | Delete a book |
 
-Book request bodies use JSON with all four fields:
+Use **Body → raw → JSON** in Postman for POST and PUT:
 
 ```json
 {
@@ -37,4 +48,4 @@ Book request bodies use JSON with all four fields:
 }
 ```
 
-`title` and `author` must be non-empty strings, `price` a non-negative integer, and `pages` a positive integer. The SQLite database file is generated locally by `npm run seed` and is excluded from Git.
+The API validates the body and uses parameterized SQL for database values.
