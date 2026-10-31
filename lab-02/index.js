@@ -1,6 +1,5 @@
 const express = require("express");
 const path = require("path");
-const sampleBooks = require("./sample-books.json");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -68,26 +67,6 @@ const connectToNeon = async () => {
       };
     },
   };
-
-  await sql.query(`
-    CREATE TABLE IF NOT EXISTS book (
-      id SERIAL PRIMARY KEY,
-      title TEXT NOT NULL,
-      author TEXT NOT NULL,
-      price INTEGER NOT NULL,
-      pages INTEGER NOT NULL
-    )
-  `);
-
-  const existingBooks = await database.all("SELECT id FROM book LIMIT 1");
-  if (existingBooks.length === 0) {
-    for (const book of sampleBooks) {
-      await database.run(
-        "INSERT INTO book (title, author, price, pages) VALUES (?, ?, ?, ?)",
-        [book.title, book.author, book.price, book.pages],
-      );
-    }
-  }
 };
 
 const connectToLocalSQLite = async () => {
