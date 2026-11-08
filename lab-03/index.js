@@ -1,9 +1,15 @@
 const path = require("path");
 const express = require("express");
 
+const app = express();
 const PORT = process.env.PORT || 3000;
 const databasePath = path.join(__dirname, "books.db");
-const sortableColumns = new Set(["id", "title", "author", "price", "pages"]);
+let database;
+
+app.use(express.json());
+
+// Keep the column names that users are allowed to sort by.
+const allowedSortColumns = ["id", "title", "author", "price", "pages"];
 
 const createBooksTable = `
   CREATE TABLE IF NOT EXISTS book (
@@ -15,7 +21,8 @@ const createBooksTable = `
   )
 `;
 
-const addQuestionMarks = (query) => {
+// SQLite uses ? placeholders. This changes them to $1, $2 for Neon Postgres.
+const changePlaceholdersForNeon = (query) => {
   let number = 0;
   return query.replace(/\?/g, () => {
     number += 1;
@@ -23,273 +30,259 @@ const addQuestionMarks = (query) => {
   });
 };
 
-const badRequest = (message) => Object.assign(new Error(message), { status: 400 });
-
-const readQueryValue = (query, name, defaultValue) => {
-  const value = query[name];
-  if (value === undefined) {
-    return defaultValue;
-  }
-  if (typeof value !== "string") {
-    throw badRequest(`${name} must be provided once as a single value`);
-  }
-  return value;
+const isValidBook = (book) => {
+  return (
+    book &&
+    typeof book.title === "string" &&
+    book.title.trim() !== "" &&
+    typeof book.author === "string" &&
+    book.author.trim() !== "" &&
+    Number.isInteger(book.price) &&
+    book.price >= 0 &&
+    Number.isInteger(book.pages) &&
+    book.pages > 0
+  );
 };
-
-const parseIntegerQuery = (query, name, defaultValue, minimum, maximum) => {
-  const value = readQueryValue(query, name, undefined);
-  if (value === undefined) {
-    return defaultValue;
-  }
-  if (!/^\d+$/.test(value)) {
-    throw badRequest(`${name} must be an integer`);
-  }
-
-  const parsedValue = Number(value);
-  if (
-    !Number.isSafeInteger(parsedValue) ||
-    parsedValue < minimum ||
-    (maximum !== undefined && parsedValue > maximum)
-  ) {
-    const range = maximum === undefined ? `at least ${minimum}` : `between ${minimum} and ${maximum}`;
-    throw badRequest(`${name} must be ${range}`);
-  }
-  return parsedValue;
-};
-
-const parsePriceQuery = (query, name) => {
-  const value = readQueryValue(query, name, undefined);
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const parsedValue = Number(value);
-  if (value.trim() === "" || !Number.isFinite(parsedValue) || parsedValue < 0) {
-    throw badRequest(`${name} must be a non-negative number`);
-  }
-  return parsedValue;
-};
-
-const parseBookListOptions = (query) => {
-  const searchQuery = readQueryValue(query, "search_q", "").trim();
-  const orderBy = readQueryValue(query, "order_by", "id").toLowerCase();
-  const order = readQueryValue(query, "order", "ASC").toUpperCase();
-  const limit = parseIntegerQuery(query, "limit", 10, 1, 100);
-  const offset = parseIntegerQuery(query, "offset", 0, 0);
-  const minPrice = parsePriceQuery(query, "min_price");
-  const maxPrice = parsePriceQuery(query, "max_price");
-
-  if (!sortableColumns.has(orderBy)) {
-    throw badRequest(`order_by must be one of: ${Array.from(sortableColumns).join(", ")}`);
-  }
-  if (order !== "ASC" && order !== "DESC") {
-    throw badRequest("order must be ASC or DESC");
-  }
-  if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
-    throw badRequest("min_price cannot be greater than max_price");
-  }
-
-  return { searchQuery, orderBy, order, limit, offset, minPrice, maxPrice };
-};
-
-const isValidBook = (book) =>
-  book !== null &&
-  typeof book === "object" &&
-  !Array.isArray(book) &&
-  typeof book.title === "string" &&
-  book.title.trim() !== "" &&
-  typeof book.author === "string" &&
-  book.author.trim() !== "" &&
-  Number.isInteger(book.price) &&
-  book.price >= 0 &&
-  Number.isInteger(book.pages) &&
-  book.pages > 0;
 
 const getBookId = (value) => {
-  if (!/^\d+$/.test(value)) {
-    return null;
-  }
   const id = Number(value);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
+  if (Number.isInteger(id) && id > 0) {
+    return id;
+  }
+  return null;
 };
 
-const connectToNeon = async () => {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("Set DATABASE_URL to a Neon Postgres connection string.");
-  }
-
+// Use Neon on Vercel. The same routes also work with SQLite on your computer.
+const connectToNeon = () => {
   const { neon } = require("@neondatabase/serverless");
   const sql = neon(process.env.DATABASE_URL);
 
   return {
-    all: (query, values = []) => sql.query(addQuestionMarks(query), values),
+    all: (query, values) => sql.query(changePlaceholdersForNeon(query), values),
 
-    async get(query, values = []) {
-      const rows = await sql.query(addQuestionMarks(query), values);
+    async get(query, values) {
+      const rows = await sql.query(changePlaceholdersForNeon(query), values);
       return rows[0];
     },
 
-    async run(query, values = []) {
-      const rows = await sql.query(`${addQuestionMarks(query)} RETURNING id`, values);
-      return { lastID: rows[0] ? rows[0].id : undefined, changes: rows.length };
+    async run(query, values) {
+      const rows = await sql.query(
+        `${changePlaceholdersForNeon(query)} RETURNING id`,
+        values,
+      );
+      return {
+        lastID: rows[0] ? rows[0].id : undefined,
+        changes: rows.length,
+      };
     },
   };
 };
 
-const connectToLocalSQLite = async () => {
+const connectToSQLite = async () => {
   const sqlite3 = require("sqlite3");
   const { open } = require("sqlite");
+
   const database = await open({
     filename: databasePath,
     driver: sqlite3.Database,
   });
+
   await database.exec(createBooksTable);
   return database;
 };
 
-const createApp = (database) => {
-  const app = express();
-  app.use(express.json());
-
-  app.get("/books", async (req, res) => {
-    const { searchQuery, orderBy, order, limit, offset, minPrice, maxPrice } =
-      parseBookListOptions(req.query);
-    const conditions = [];
-    const values = [];
-
-    if (searchQuery) {
-      conditions.push("LOWER(title) LIKE LOWER(?)");
-      values.push(`%${searchQuery}%`);
-    }
-    if (minPrice !== undefined) {
-      conditions.push("price >= ?");
-      values.push(minPrice);
-    }
-    if (maxPrice !== undefined) {
-      conditions.push("price <= ?");
-      values.push(maxPrice);
-    }
-
-    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    values.push(limit, offset);
-    const books = await database.all(
-      `SELECT * FROM book ${whereClause} ORDER BY ${orderBy} ${order} LIMIT ? OFFSET ?`,
-      values,
-    );
-    return res.status(200).json(books);
-  });
-
-  app.get("/books/:bookId", async (req, res) => {
-    const bookId = getBookId(req.params.bookId);
-    if (bookId === null) {
-      return res.status(400).json({ message: "bookId must be a positive integer" });
-    }
-
-    const book = await database.get("SELECT * FROM book WHERE id = ?", [bookId]);
-    if (!book) {
-      return res.status(404).json({ message: "Book not found" });
-    }
-    return res.status(200).json(book);
-  });
-
-  app.post("/books", async (req, res) => {
-    if (!isValidBook(req.body)) {
-      return res.status(400).json({
-        message:
-          "Provide a non-empty title and author, a non-negative integer price, and a positive integer pages value",
-      });
-    }
-
-    const { title, author, price, pages } = req.body;
-    const result = await database.run(
-      "INSERT INTO book (title, author, price, pages) VALUES (?, ?, ?, ?)",
-      [title.trim(), author.trim(), price, pages],
-    );
-    return res.status(201).json({
-      message: "Book created successfully",
-      bookId: result.lastID,
-    });
-  });
-
-  app.put("/books/:bookId", async (req, res) => {
-    const bookId = getBookId(req.params.bookId);
-    if (bookId === null) {
-      return res.status(400).json({ message: "bookId must be a positive integer" });
-    }
-    if (!isValidBook(req.body)) {
-      return res.status(400).json({
-        message:
-          "Provide a non-empty title and author, a non-negative integer price, and a positive integer pages value",
-      });
-    }
-
-    const { title, author, price, pages } = req.body;
-    const result = await database.run(
-      "UPDATE book SET title = ?, author = ?, price = ?, pages = ? WHERE id = ?",
-      [title.trim(), author.trim(), price, pages, bookId],
-    );
-    if (result.changes === 0) {
-      return res.status(404).json({ message: "Book not found" });
-    }
-    return res.status(200).json({ message: "Book updated successfully" });
-  });
-
-  app.delete("/books/:bookId", async (req, res) => {
-    const bookId = getBookId(req.params.bookId);
-    if (bookId === null) {
-      return res.status(400).json({ message: "bookId must be a positive integer" });
-    }
-
-    const result = await database.run("DELETE FROM book WHERE id = ?", [bookId]);
-    if (result.changes === 0) {
-      return res.status(404).json({ message: "Book not found" });
-    }
-    return res.status(200).json({ message: "Book deleted successfully" });
-  });
-
-  app.use((req, res) => {
-    res.status(404).json({ message: "Route not found" });
-  });
-
-  app.use((error, req, res, next) => {
-    if (res.headersSent) {
-      return next(error);
-    }
-    if (error.type === "entity.parse.failed") {
-      return res.status(400).json({ message: "Request body must contain valid JSON" });
-    }
-    if (error.status === 400) {
-      return res.status(400).json({ message: error.message });
-    }
-    console.error(error);
-    return res.status(500).json({ message: "Internal server error" });
-  });
-
+const createApp = (databaseConnection) => {
+  database = databaseConnection;
   return app;
 };
 
-const startServer = async () => {
-  let database;
-  if (process.env.DATABASE_URL) {
-    database = await connectToNeon();
-  } else if (process.env.VERCEL) {
-    throw new Error("Set DATABASE_URL to a Neon Postgres connection string in Vercel.");
-  } else {
-    database = await connectToLocalSQLite();
+// GET /books?search_q=the&order_by=price&order=DESC&limit=5&offset=0
+app.get("/books", async (req, res) => {
+  const search = req.query.search_q || "";
+  const sortBy = req.query.order_by || "id";
+  const order = (req.query.order || "ASC").toUpperCase();
+  const limit = req.query.limit === undefined ? 10 : Number(req.query.limit);
+  const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+
+  // Reject invalid sorting and page settings before making a database query.
+  if (!allowedSortColumns.includes(sortBy)) {
+    return res.status(400).json({
+      message: "order_by must be id, title, author, price, or pages",
+    });
+  }
+  if (order !== "ASC" && order !== "DESC") {
+    return res.status(400).json({ message: "order must be ASC or DESC" });
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    return res.status(400).json({ message: "limit must be from 1 to 100" });
+  }
+  if (!Number.isInteger(offset) || offset < 0) {
+    return res.status(400).json({ message: "offset must be 0 or greater" });
+  }
+  if (typeof search !== "string") {
+    return res.status(400).json({ message: "search_q must be text" });
   }
 
-  const server = createApp(database).listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  const conditions = [];
+  const values = [];
+
+  if (search.trim() !== "") {
+    conditions.push("LOWER(title) LIKE LOWER(?)");
+    values.push(`%${search.trim()}%`);
+  }
+
+  // min_price and max_price can be used separately or together.
+  let minPrice;
+  let maxPrice;
+
+  if (req.query.min_price !== undefined) {
+    minPrice = Number(req.query.min_price);
+    if (!Number.isFinite(minPrice) || minPrice < 0) {
+      return res.status(400).json({ message: "min_price must be 0 or greater" });
+    }
+    conditions.push("price >= ?");
+    values.push(minPrice);
+  }
+
+  if (req.query.max_price !== undefined) {
+    maxPrice = Number(req.query.max_price);
+    if (!Number.isFinite(maxPrice) || maxPrice < 0) {
+      return res.status(400).json({ message: "max_price must be 0 or greater" });
+    }
+    conditions.push("price <= ?");
+    values.push(maxPrice);
+  }
+
+  if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+    return res.status(400).json({
+      message: "min_price cannot be greater than max_price",
+    });
+  }
+
+  let whereClause = "";
+  if (conditions.length > 0) {
+    whereClause = `WHERE ${conditions.join(" AND ")}`;
+  }
+
+  values.push(limit, offset);
+  const query = `
+    SELECT * FROM book
+    ${whereClause}
+    ORDER BY ${sortBy} ${order}
+    LIMIT ? OFFSET ?
+  `;
+  const books = await database.all(query, values);
+  return res.status(200).json(books);
+});
+
+// GET /books/1
+app.get("/books/:bookId", async (req, res) => {
+  const bookId = getBookId(req.params.bookId);
+  if (bookId === null) {
+    return res.status(400).json({ message: "bookId must be a positive number" });
+  }
+
+  const book = await database.get("SELECT * FROM book WHERE id = ?", [bookId]);
+  if (!book) {
+    return res.status(404).json({ message: "Book not found" });
+  }
+  return res.status(200).json(book);
+});
+
+// POST /books
+app.post("/books", async (req, res) => {
+  if (!isValidBook(req.body)) {
+    return res.status(400).json({
+      message:
+        "Enter a title, author, non-negative whole-number price, and positive whole-number pages",
+    });
+  }
+
+  const { title, author, price, pages } = req.body;
+  const result = await database.run(
+    "INSERT INTO book (title, author, price, pages) VALUES (?, ?, ?, ?)",
+    [title.trim(), author.trim(), price, pages],
+  );
+
+  return res.status(201).json({
+    message: "Book created successfully",
+    bookId: result.lastID,
   });
-  server.on("error", (error) => {
-    console.error("Could not start the server:", error);
-    process.exitCode = 1;
+});
+
+// PUT /books/1
+app.put("/books/:bookId", async (req, res) => {
+  const bookId = getBookId(req.params.bookId);
+  if (bookId === null) {
+    return res.status(400).json({ message: "bookId must be a positive number" });
+  }
+  if (!isValidBook(req.body)) {
+    return res.status(400).json({
+      message:
+        "Enter a title, author, non-negative whole-number price, and positive whole-number pages",
+    });
+  }
+
+  const { title, author, price, pages } = req.body;
+  const result = await database.run(
+    "UPDATE book SET title = ?, author = ?, price = ?, pages = ? WHERE id = ?",
+    [title.trim(), author.trim(), price, pages, bookId],
+  );
+
+  if (result.changes === 0) {
+    return res.status(404).json({ message: "Book not found" });
+  }
+  return res.status(200).json({ message: "Book updated successfully" });
+});
+
+// DELETE /books/1
+app.delete("/books/:bookId", async (req, res) => {
+  const bookId = getBookId(req.params.bookId);
+  if (bookId === null) {
+    return res.status(400).json({ message: "bookId must be a positive number" });
+  }
+
+  const result = await database.run("DELETE FROM book WHERE id = ?", [bookId]);
+  if (result.changes === 0) {
+    return res.status(404).json({ message: "Book not found" });
+  }
+  return res.status(200).json({ message: "Book deleted successfully" });
+});
+
+// Return the same JSON message when someone requests an unknown route.
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
+});
+
+// Convert invalid JSON and other errors into JSON responses.
+app.use((error, req, res, next) => {
+  if (res.headersSent) {
+    return next(error);
+  }
+  if (error.type === "entity.parse.failed") {
+    return res.status(400).json({ message: "Request body must contain valid JSON" });
+  }
+  console.error(error);
+  return res.status(500).json({ message: "Internal server error" });
+});
+
+const startServer = async () => {
+  if (process.env.DATABASE_URL) {
+    database = connectToNeon();
+  } else if (process.env.VERCEL) {
+    throw new Error("Set DATABASE_URL in the Vercel project settings.");
+  } else {
+    database = await connectToSQLite();
+  }
+
+  createApp(database).listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
   });
 };
 
 if (require.main === module) {
   startServer().catch((error) => {
-    console.error("Could not connect to the database or start the server:", error);
+    console.error("Could not start the server:", error);
     process.exitCode = 1;
   });
 }
