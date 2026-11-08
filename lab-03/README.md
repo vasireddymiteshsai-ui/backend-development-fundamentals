@@ -6,7 +6,7 @@
 
 **Section:** CSE-2E-211
 
-**Printable assignment:** [Download the Lab 3 PDF](./Assignment-3-REST-API.pdf). The live deployment link is left blank in the PDF so it can be added after deployment.
+**Printable assignment:** [Download the Lab 3 PDF](./Assignment-3-REST-API.pdf). It includes eight local API screenshots. The live deployment link is left blank so it can be added after deployment.
 
 **Live link:** Not deployed yet. A Neon `DATABASE_URL` and a Vercel project configured with this repository's `lab-03` root directory are required. Follow the deployment steps below, then replace this line with the public URL.
 
