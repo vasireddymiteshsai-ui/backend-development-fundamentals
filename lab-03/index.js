@@ -96,6 +96,24 @@ const createApp = (databaseConnection) => {
   return app;
 };
 
+// On Vercel, prepare the database the first time a request comes in.
+app.use(async (req, res, next) => {
+  try {
+    if (!database) {
+      if (process.env.DATABASE_URL) {
+        database = connectToNeon();
+      } else if (process.env.VERCEL) {
+        throw new Error("Set DATABASE_URL in the Vercel project settings.");
+      } else {
+        database = await connectToSQLite();
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /books?search_q=the&order_by=price&order=DESC&limit=5&offset=0
 app.get("/books", async (req, res) => {
   const search = req.query.search_q || "";
@@ -287,4 +305,7 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createApp, createBooksTable };
+// Vercel uses the exported Express app to handle incoming requests.
+module.exports = app;
+module.exports.createApp = createApp;
+module.exports.createBooksTable = createBooksTable;
