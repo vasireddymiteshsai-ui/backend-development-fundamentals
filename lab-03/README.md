@@ -118,26 +118,43 @@ All error responses use the shape `{"message":"..."}`. POST and PUT must use val
 4. Import the existing GitHub repository into Vercel (or create a project for it) and set **Root Directory** to `lab-03`. Set `DATABASE_URL` for Production and Preview as appropriate.
 5. Deploy, test the public `/books` URL, and replace the Live link at the top of this README.
 
-## Screenshots to capture
+## Screenshots
 
-Save actual Postman screenshots inside `lab-03/screenshots/` using these filenames. Capture the full Postman window so the request URL, status code, and response body are visible. Do not include Neon credentials, `.env` values, or other secrets in screenshots.
+These screenshots were captured by sending real requests to the locally running API with SQLite. They show each method, request URL, response status, and response body. They are API evidence captures, not images of the Postman application. If your instructor specifically requires Postman screenshots, repeat the same requests in Postman and replace these images. No database credentials or secrets are shown.
 
-1. `get-books.png`: successful `GET /books` showing the JSON array.
-2. `filtered-books.png`: `GET /books` with `search_q`, sorting, price range, and pagination visible in the URL and response.
-3. `get-book.png`: successful `GET /books/1`.
-4. `post-book.png`: successful POST, with `201` and the response `bookId`; show the request JSON in the same capture if legible.
-5. `validation-error.png`: invalid POST body and the `400` JSON message.
-6. `put-book.png`: successful PUT showing `200`.
-7. `delete-book.png`: successful DELETE showing `200`.
-8. `not-found.png`: a missing book request showing `404`.
+### Get all books
 
-After saving each image, add it to this README with the matching Markdown form, for example:
+![GET books response showing the book list and HTTP 200](screenshots/get-books.png)
 
-```markdown
-![Filtered and paginated book search](screenshots/filtered-books.png)
-```
+### Search, sort, filter, and paginate
 
-If deployed, also capture the public API response and a Neon table view with sensitive connection information excluded. For a submission before deployment, capture the local Postman calls listed above.
+![Filtered and sorted GET books response showing the query parameters and HTTP 200](screenshots/filtered-books.png)
+
+### Get one book
+
+![GET one book response showing HTTP 200](screenshots/get-book.png)
+
+### Create a book
+
+![POST request with JSON body and created book response showing HTTP 201](screenshots/post-book.png)
+
+### Reject invalid book information
+
+![Invalid POST request body and validation message showing HTTP 400](screenshots/validation-error.png)
+
+### Update a book
+
+![PUT request and successful update message showing HTTP 200](screenshots/put-book.png)
+
+### Delete a book
+
+![DELETE request and successful delete message showing HTTP 200](screenshots/delete-book.png)
+
+### Handle a missing book
+
+![Request for a missing book and error message showing HTTP 404](screenshots/not-found.png)
+
+If deployed, add a screenshot of the public API response and (if required) a Neon table view. Keep database connection information out of screenshots.
 
 ## Viva preparation
 
