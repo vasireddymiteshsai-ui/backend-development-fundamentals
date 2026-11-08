@@ -1,0 +1,26 @@
+{
+  "name": "lab-03",
+  "version": "1.0.0",
+  "description": "REST API query parameters, validation, and debugging",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "seed": "node seed.js",
+    "setup:neon": "node setup-neon.js"
+  },
+  "keywords": [],
+  "author": "Vasireddy Mitesh Sai",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "express": "^5.3.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
