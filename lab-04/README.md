@@ -15,6 +15,8 @@ Not applicable — this lab uses a local SQLite database with bcrypt hashing, wh
 Requires Node.js (v18+) and npm. From a terminal opened in `lab-04/`:
 
 ```bash
+npm init -y
+npm install express sqlite sqlite3 bcrypt jsonwebtoken
 npm install
 cd app
 node index.js
